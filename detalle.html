@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Detalle por producto</title>
+<style>
+  :root { --azul:#1F4E78; --gris:#f4f6f9; --borde:#d8dee6; --verde:#2a8a4a; }
+  * { box-sizing:border-box; font-family:'Segoe UI',Arial,sans-serif; }
+  body { margin:0; background:var(--gris); color:#222; }
+  header { background:var(--azul); color:#fff; padding:14px 28px;
+           position:sticky; top:0; z-index:5; display:flex;
+           justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:16px; }
+  main { max-width:1250px; margin:20px auto; padding:0 16px; }
+  .nota { font-size:12.5px; color:#555; margin-bottom:12px; line-height:1.5; }
+  .barra { background:#fff; border:1px solid var(--borde); border-radius:8px;
+           padding:12px 16px; margin-bottom:14px; display:flex; gap:10px;
+           flex-wrap:wrap; align-items:center; font-size:13px; }
+  input[type=text], .barra select { padding:7px 10px; border:1px solid var(--borde);
+           border-radius:6px; font-size:13px; }
+  button { background:#5b7a99; color:#fff; border:0; border-radius:6px;
+           padding:9px 18px; font-size:13px; cursor:pointer; }
+  table.principal { width:100%; border-collapse:collapse; background:#fff;
+          border:1px solid var(--borde); font-size:12px; }
+  table.principal > thead th { background:var(--azul); color:#fff; padding:8px 6px;
+       text-align:left; position:sticky; top:58px; font-size:10.5px; }
+  table.principal > tbody > tr > td { padding:6px; border-bottom:1px solid var(--borde);
+       vertical-align:middle; }
+  tr.filaProd { cursor:pointer; }
+  tr.filaProd:hover > td { background:#eef3f8; }
+  .num { text-align:right; white-space:nowrap; }
+  td select { width:100%; min-width:120px; padding:6px; border:1px solid #8fc79d;
+              border-radius:6px; background:#f4fbf6; font-size:11.5px; }
+  td select.vacio { border-color:#c66; background:#fff5f5; }
+  .est { border-radius:10px; font-size:9.5px; font-weight:800; padding:3px 9px;
+         white-space:nowrap; display:inline-block; }
+  .est.ok { background:#e5f2e9; color:#2a8a4a; border:1px solid #bfe0ca; }
+  .est.no { background:#fdeceb; color:#b03a2e; border:1px solid #f2c4bf; }
+  tr.subdet { display:none; }
+  tr.subdet.abierto { display:table-row; }
+  tr.subdet > td { background:#fafbfd; padding:10px 12px; }
+  .tablewrap { overflow-x:auto; border-radius:8px; border:1px solid var(--borde); }
+  table.lineas { width:100%; border-collapse:collapse; font-size:11px; background:#fff; }
+  table.lineas th { background:#5b7a99; color:#fff; padding:6px 5px; text-align:left;
+       font-size:10px; white-space:nowrap; }
+  table.lineas td { padding:6px 5px; border-bottom:1px solid var(--borde); white-space:nowrap; }
+  table.lineas tr.total td { background:#eef2f7; font-weight:700; }
+
+  th.ord { cursor:pointer; user-select:none; }
+  th.ord:hover { background:#163a5c; }
+  .fl { font-size:9px; opacity:.85; margin-left:2px; }
+
+  .mchips { display:flex; gap:7px; overflow-x:auto; padding:2px 0 12px;
+            -webkit-overflow-scrolling:touch; }
+  .mchip { white-space:nowrap; font-size:11px; font-weight:800; padding:8px 14px;
+           border-radius:18px; background:#fff; border:1.5px solid var(--borde);
+           color:#67788c; text-decoration:none; }
+  .mchip.on { background:#E8B84B; border-color:#E8B84B; color:#4a3608; }
+  .subtot { background:#eef2f7; border:1px solid var(--borde); border-radius:9px;
+            padding:9px 14px; margin:10px 0; font-size:12.5px; font-weight:700;
+            color:#1F4E78; display:flex; gap:16px; flex-wrap:wrap; }
+  .subtot span b { color:#0e2a47; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔍 DETALLE POR PRODUCTO</h1>
+  <a href="/"><button type="button">← Volver</button></a>
+</header>
+<main>
+  {% if meses %}<div class="mchips">
+    <a class="mchip {{ 'on' if not mes_actual }}" href="?">TODOS LOS MESES</a>
+    {% for m in meses %}
+    <a class="mchip {{ 'on' if mes_actual == m.clave }}" href="?mes={{ m.clave }}">{{ m.nombre }}</a>
+    {% endfor %}
+  </div>{% endif %}
+  <p class="nota">Todo en columnas: <b>proveedor, última compra, rubro, tipo y
+  estado</b>. Asigne o modifique directo en la fila (se graba al instante) y
+  toque el nombre del producto para desplegar sus compras.</p>
+
+  <div class="barra">
+    <input type="text" id="buscar" placeholder="🔍 Filtrar producto o proveedor..." onkeyup="filtrar()">
+    <select id="fEstado" onchange="filtrar()">
+      <option value="">Todos</option>
+      <option value="1">✔ Asignados</option>
+      <option value="0">✖ No asignados</option>
+    </select>
+    <select id="fCompras" onchange="filtrar()">
+      <option value=""># compras: todas</option>
+      <option value="1">1 compra</option>
+      <option value="2">2 compras</option>
+      <option value="3">3 compras</option>
+      <option value="4">4 o más</option>
+    </select>
+    <select id="fImp" onchange="filtrar()">
+      <option value="">Impuesto: todos</option>
+      <option value="con">Generaron IVA</option>
+      <option value="cero">Solo IVA 0%</option>
+      <option value="mixto">Mixtos (IVA + 0%)</option>
+    </select>
+    <button type="button" onclick="abrirMostrados()">📂 Abrir mostrados</button>
+    <span id="resumen" style="color:#68758a"></span>
+  </div>
+
+  <div class="subtot" id="subtot"></div>
+  <table class="principal" id="tabla">
+    <thead>
+      <tr>
+<th>CÓDIGO</th><th class="ord" onclick="ordenar('prod')">PRODUCTO <span class="fl" id="fl_prod">⇅</span></th><th class="ord" onclick="ordenar('prov')">PROVEEDOR <span class="fl" id="fl_prov">⇅</span></th><th>ÚLT. COMPRA</th>
+        <th class="num"># COMPRAS</th>
+        <th class="num">BASE IVA</th><th class="num">IVA</th><th class="num">BASE 0%</th>
+        <th class="ord num" onclick="ordenar('tot')">TOTAL $ <span class="fl" id="fl_tot">⇅</span></th>
+        <th>RUBRO</th><th>TIPO DE GASTO</th><th>ESTADO</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+      {% set ls = lineas[p.clave] %}
+      <tr class="filaProd" data-txt="{{ p.descripcion }} {{ p.proveedor }} {{ p.codigo }}"
+          data-asig="{{ 1 if p.rubro and p.tipo_gasto else 0 }}" data-sub="sub{{ loop.index }}" data-compras="{{ p.compras }}" data-bi="{{ p.base_iva or 0 }}" data-ivax="{{ p.iva or 0 }}" data-bc="{{ p.base_cero or 0 }}" data-imp="{{ 'mixto' if (p.iva or 0) > 0.005 and (p.base_cero or 0) > 0.005 else ('con' if (p.iva or 0) > 0.005 else 'cero') }}" data-o-prod="{{ p.descripcion }}" data-o-prov="{{ p.proveedor }}" data-o-tot="{{ p.total }}">
+        <td onclick="toggleSub('sub{{ loop.index }}')"><b>{{ p.codigo }}</b></td>
+        <td onclick="toggleSub('sub{{ loop.index }}')">
+          <b>▸ {{ p.descripcion }}</b></td>
+        <td class="prov" onclick="toggleSub('sub{{ loop.index }}')">{{ p.proveedor }}</td>
+        <td onclick="toggleSub('sub{{ loop.index }}')" style="white-space:nowrap">{{ p.fecha_ultima or '' }}</td>
+        <td class="num" onclick="toggleSub('sub{{ loop.index }}')">{{ p.compras }}</td>
+        <td class="num" onclick="toggleSub('sub{{ loop.index }}')">{{ '%.2f'|format(p.base_iva or 0) }}</td>
+        <td class="num" onclick="toggleSub('sub{{ loop.index }}')">{{ '%.2f'|format(p.iva or 0) }}</td>
+        <td class="num" onclick="toggleSub('sub{{ loop.index }}')">{{ '%.2f'|format(p.base_cero or 0) }}</td>
+        <td class="num" onclick="toggleSub('sub{{ loop.index }}')">{{ '%.2f'|format(p.total) }}</td>
+        <td>
+          <select name="rubro__{{ p.clave }}" class="{{ '' if p.rubro else 'vacio' }}" data-prev="{{ p.rubro or '' }}" data-prod="{{ p.descripcion }}">
+            <option value=""></option>
+            {% for r in rubros %}<option {{ 'selected' if p.rubro == r }}>{{ r }}</option>{% endfor %}
+          </select>
+        </td>
+        <td>
+          <select name="tipo__{{ p.clave }}" class="{{ '' if p.tipo_gasto else 'vacio' }}" data-prev="{{ p.tipo_gasto or '' }}" data-prod="{{ p.descripcion }}">
+            <option value=""></option>
+            {% for t in tipos %}<option {{ 'selected' if p.tipo_gasto == t }}>{{ t }}</option>{% endfor %}
+          </select>
+        </td>
+        <td class="celEst">
+          {% if p.rubro and p.tipo_gasto %}
+          <span class="est ok">✔ ASIGNADO</span>
+          {% else %}
+          <span class="est no">✖ NO ASIGNADO</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr class="subdet" id="sub{{ loop.index }}">
+        <td colspan="12">
+          <div class="tablewrap">
+            <table class="lineas">
+              <tr><th>FECHA</th><th>PROVEEDOR</th><th>RUC</th><th>NUM. FACTURA</th>
+                  <th>AUTORIZACIÓN</th><th class="num">CANT.</th>
+                  <th class="num">P. UNIT.</th><th class="num">BASE PARA IVA</th>
+                  <th class="num">BASE CERO</th><th class="num">IVA</th>
+                  <th class="num">TOTAL</th></tr>
+              {% for l in ls %}
+              <tr>
+                <td>{{ l.FECHA }}</td><td>{{ l.PROVEEDOR }}</td><td>{{ l.RUC }}</td>
+                <td>{{ l.NUM_FACTURA }}</td>
+                <td>{{ l.AUTORIZACION[:14] }}…{{ l.AUTORIZACION[-4:] }}</td>
+                <td class="num">{{ l.CANTIDAD }}</td>
+                <td class="num">{{ '%.2f'|format(l.P_UNITARIO) }}</td>
+                <td class="num">{{ '%.2f'|format(l.BASE_IVA) }}</td>
+                <td class="num">{{ '%.2f'|format(l.BASE_CERO) }}</td>
+                <td class="num">{{ '%.2f'|format(l.IVA) }}</td>
+                <td class="num"><b>{{ '%.2f'|format(l.TOTAL) }}</b></td>
+              </tr>
+              {% endfor %}
+              <tr class="total">
+                <td colspan="7">TOTAL PRODUCTO</td>
+                <td class="num">{{ '%.2f'|format(ls|sum(attribute='BASE_IVA')) }}</td>
+                <td class="num">{{ '%.2f'|format(ls|sum(attribute='BASE_CERO')) }}</td>
+                <td class="num">{{ '%.2f'|format(ls|sum(attribute='IVA')) }}</td>
+                <td class="num">{{ '%.2f'|format(ls|sum(attribute='TOTAL')) }}</td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+<script>
+function toggleSub(id){
+  document.getElementById(id).classList.toggle('abierto');
+}
+function abrirMostrados(){
+  document.querySelectorAll('tr.filaProd').forEach(tr => {
+    if (tr.style.display !== 'none')
+      document.getElementById(tr.dataset.sub).classList.add('abierto');
+  });
+}
+function filtrar(){
+  const q = document.getElementById('buscar').value.toUpperCase();
+  const e = document.getElementById('fEstado').value;
+  const nc = document.getElementById('fCompras').value;
+  let vis = 0;
+  document.querySelectorAll('tr.filaProd').forEach(tr => {
+    const n = parseInt(tr.dataset.compras || '0');
+    const okN = !nc || (nc === '4' ? n >= 4 : n === parseInt(nc));
+    const im = document.getElementById('fImp').value;
+    const okI = !im || tr.dataset.imp === im;
+    const ok = tr.dataset.txt.toUpperCase().includes(q) &&
+               (!e || tr.dataset.asig === e) && okN && okI;
+    tr.style.display = ok ? '' : 'none';
+    if (!ok) document.getElementById(tr.dataset.sub).classList.remove('abierto');
+    if (ok) vis++;
+  });
+  document.getElementById('resumen').textContent = vis + ' producto(s)';
+  // SUBTOTALES en vivo de lo mostrado
+  let nc2=0, bi=0, iv=0, bc=0, tt=0;
+  document.querySelectorAll('tr.filaProd').forEach(tr => {
+    if (tr.style.display === 'none') return;
+    nc2 += parseInt(tr.dataset.compras||'0');
+    bi += parseFloat(tr.dataset.bi||'0');
+    iv += parseFloat(tr.dataset.ivax||'0');
+    bc += parseFloat(tr.dataset.bc||'0');
+    tt += parseFloat(tr.dataset.oTot||'0');
+  });
+  const f2 = n => '$'+n.toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('subtot').innerHTML =
+    `<span>SUBTOTAL DE LO MOSTRADO →</span><span>${vis} productos · <b>${nc2}</b> compras</span>` +
+    `<span>Base IVA <b>${f2(bi)}</b></span><span>IVA <b>${f2(iv)}</b></span>` +
+    `<span>Base 0% <b>${f2(bc)}</b></span><span>TOTAL <b>${f2(tt)}</b></span>`;
+}
+filtrar();
+
+/* Auto-guardado + estado en vivo */
+
+/* Un producto YA CLASIFICADO solo se cambia si el usuario confirma SI */
+function confirmarCambio(sel){
+  const prev = sel.dataset.prev || '';
+  if (prev && sel.value !== prev){
+    const prod = sel.dataset.prod || 'Este producto';
+    const ok = confirm('⚠ PRODUCTO CLASIFICADO\n\n"' + prod +
+      '" ya está clasificado como: ' + prev +
+      '\n\n¿Cambia clasificación a "' + sel.value + '"?\n\n' +
+      'Aceptar = SÍ      Cancelar = NO');
+    if (!ok){ sel.value = prev; return false; }
+  }
+  sel.dataset.prev = sel.value;
+  return true;
+}
+function autoGuardar(sel){
+  if (!confirmarCambio(sel)) return;
+  const n = sel.name || '';
+  const sep = n.indexOf('__');
+  if (sep < 0) return;
+  const campo = n.slice(0, sep) === 'tipo' ? 'tipo_gasto' : 'rubro';
+  const clave = n.slice(sep + 2);
+  fetch('/asignar', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({clave: clave, campo: campo, valor: sel.value})
+  }).then(r => {
+    if (!r.ok) return;
+    sel.style.borderColor = '#2a8a4a';
+    setTimeout(()=>{ sel.style.borderColor=''; }, 1200);
+  });
+}
+document.querySelectorAll('select[name^="rubro__"], select[name^="tipo__"]')
+  .forEach(s => s.addEventListener('change', () => {
+    autoGuardar(s);
+    s.classList.toggle('vacio', !s.value);
+    const tr = s.closest('tr');
+    const sels = tr.querySelectorAll('select');
+    const listo = sels[0].value && sels[1].value;
+    tr.dataset.asig = listo ? '1' : '0';
+    tr.querySelector('.celEst').innerHTML = listo
+      ? '<span class="est ok">✔ ASIGNADO</span>'
+      : '<span class="est no">✖ NO ASIGNADO</span>';
+  }));
+
+/* Ordenamiento por encabezado: producto/proveedor alfabetico, valor mayor-menor */
+let _oCol = null, _oAsc = true;
+function ordenar(col){
+  if (_oCol === col) _oAsc = !_oAsc;
+  else { _oCol = col; _oAsc = (col !== 'tot'); }   // valor arranca de mayor a menor
+  const tbody = document.querySelector('#tabla tbody');
+  const filas = [...tbody.querySelectorAll('tr.filaProd')];
+  const key = {prod:'oProd', prov:'oProv', tot:'oTot'}[col];
+  filas.sort((a,b)=>{
+    let c;
+    if (col === 'tot') c = parseFloat(a.dataset[key]) - parseFloat(b.dataset[key]);
+    else c = (a.dataset[key]||'').localeCompare(b.dataset[key]||'', 'es');
+    return _oAsc ? c : -c;
+  });
+  filas.forEach(f => { tbody.appendChild(f); const s=document.getElementById(f.dataset.sub); if(s) tbody.appendChild(s); });
+  ['prod','prov','tot'].forEach(c2 => {
+    const e = document.getElementById('fl_'+c2);
+    if (e) e.textContent = c2===col ? (_oAsc ? '▲' : '▼') : '⇅';
+  });
+}
+</script>
+</body>
+</html>

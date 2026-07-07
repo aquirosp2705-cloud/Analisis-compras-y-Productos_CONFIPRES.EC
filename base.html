@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Base de productos clasificados — consultar y modificar</title>
+<style>
+  :root { --azul:#1F4E78; --gris:#f4f6f9; --borde:#d8dee6; }
+  * { box-sizing:border-box; font-family:'Segoe UI',Arial,sans-serif; }
+  body { margin:0; background:var(--gris); color:#222; }
+  header { background:var(--azul); color:#fff; padding:14px 28px;
+           position:sticky; top:0; display:flex; justify-content:space-between;
+           align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:16px; }
+  main { max-width:1000px; margin:20px auto; padding:0 16px; }
+  .barra { background:#fff; border:1px solid var(--borde); border-radius:8px;
+           padding:12px 16px; margin-bottom:14px; display:flex; gap:10px;
+           flex-wrap:wrap; align-items:center; font-size:13px; }
+  input[type=text], select { padding:7px 10px; border:1px solid var(--borde);
+           border-radius:6px; font-size:13px; }
+  button { background:#5b7a99; color:#fff; border:0; border-radius:6px;
+           padding:9px 18px; font-size:13px; cursor:pointer; }
+  button.principal { background:var(--azul); }
+  td select { width:100%; padding:6px; border:1px solid #8fc79d;
+              border-radius:6px; background:#f4fbf6; font-size:11.5px; }
+  .badge { background:#fff3d6; color:#a87b00; border:1px solid #f0d896;
+           border-radius:10px; font-size:10px; font-weight:700;
+           padding:2px 8px; margin-left:6px; }
+  .okmini { background:#2a8a4a; color:#fff; border:0; border-radius:6px;
+            font-size:10px; padding:3px 8px; margin-left:4px; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; background:#fff;
+          border:1px solid var(--borde); font-size:12px; }
+  th { background:var(--azul); color:#fff; padding:8px 6px; text-align:left;
+       position:sticky; top:58px; }
+  td { padding:6px; border-bottom:1px solid var(--borde); }
+  tr:hover td { background:#eef3f8; }
+  .nota { font-size:12px; color:#555; margin-bottom:12px; }
+
+  th.ord { cursor:pointer; user-select:none; }
+  th.ord:hover { background:#163a5c; }
+  .fl { font-size:9px; opacity:.85; margin-left:2px; }
+</style>
+</head>
+<body>
+<form action="/guardar_clasificacion" method="post">
+<input type="hidden" name="origen" value="base">
+<header>
+  <h1>📖 BASE DE PRODUCTOS CLASIFICADOS</h1>
+  <div>
+    <a href="/"><button type="button">← Volver</button></a>
+    <button type="submit" class="principal">💾 Guardar cambios</button>
+  </div>
+</header>
+<main>
+  <p class="nota">Estos productos ya están grabados: en cada procesamiento el
+  sistema les asigna automáticamente lo guardado y NO vuelven a salir como
+  pendientes. Los marcados <b>⚠ POR CONFIRMAR</b> fueron asignados por regla
+  de proveedor (ej. Corporación Favorita → Alimentación/Variable): revíselos y
+  pulse ✔ Confirmar, o cámbielos — al grabar quedan por revisados y confirmados. Si necesita corregir alguno, cámbielo aquí y pulse
+  <b>Guardar cambios</b>; luego vuelva a <b>Generar Excel</b> y todo se
+  reconstruye con la nueva clasificación.
+  Total: <b>{{ productos|length }}</b> producto(s).</p>
+
+  <div class="barra">
+    <input type="text" id="buscar" placeholder="🔍 Filtrar producto o proveedor..." onkeyup="filtrar()">
+    <select id="fProv" onchange="filtrar()">
+      <option value="">Todos los proveedores</option>
+      {% for pr in productos|map(attribute='proveedor')|unique|sort if pr %}
+      <option>{{ pr }}</option>{% endfor %}
+    </select>
+    <select id="fRubro" onchange="filtrar()">
+      <option value="">Todos los rubros</option>
+      {% for r in rubros %}
+      <option>{{ r }}</option>{% endfor %}
+    </select>
+    <select id="fTipo" onchange="filtrar()">
+      <option value="">Todos los tipos</option>
+      {% for t in tipos %}
+      <option>{{ t }}</option>{% endfor %}
+    </select>
+  </div>
+
+  <table id="tabla">
+    <thead>
+      <tr><th>CÓDIGO</th><th class="ord" onclick="ordenar('prod')">PRODUCTO <span class="fl" id="fl_prod">⇅</span></th><th class="ord" onclick="ordenar('prov')">PROVEEDOR <span class="fl" id="fl_prov">⇅</span></th>
+          <th>ÚLT. COMPRA</th><th>RUBRO</th><th>TIPO DE GASTO</th></tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+      <tr data-o-prod="{{ p.descripcion }}" data-o-prov="{{ p.proveedor }}" data-o-tot="0">
+        <td>{{ p.codigo }}</td>
+        <td class="desc">{{ p.descripcion }}
+          {% if p.por_confirmar %}
+          <span class="badge" id="bg_{{ loop.index }}">⚠ POR CONFIRMAR</span>
+          <button type="button" class="okmini"
+            onclick="confirmarProd('{{ p.clave }}', 'bg_{{ loop.index }}', this)">✔ Confirmar</button>
+          {% endif %}
+        </td>
+        <td class="prov">{{ p.proveedor }}</td>
+        <td style="white-space:nowrap">{{ p.fecha }}</td>
+        <td class="rub" data-v="{{ p.rubro }}">
+          <select name="rubro__{{ p.clave }}" data-prev="{{ p.rubro }}" data-prod="{{ p.descripcion }}">
+            {% for r in rubros %}
+            <option {{ 'selected' if p.rubro == r }}>{{ r }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td class="tip" data-v="{{ p.tipo_gasto }}">
+          <select name="tipo__{{ p.clave }}" data-prev="{{ p.tipo_gasto }}" data-prod="{{ p.descripcion }}">
+            {% for t in tipos %}
+            <option {{ 'selected' if p.tipo_gasto == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+</form>
+<script>
+function confirmarProd(clave, idBadge, btn){
+  fetch('/confirmar', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({clave: clave})}).then(r=>{
+      if (!r.ok) return;
+      const bg = document.getElementById(idBadge);
+      if (bg) bg.remove();
+      btn.remove();
+    });
+}
+function filtrar() {
+  const q = document.getElementById('buscar').value.toUpperCase();
+  const pv = document.getElementById('fProv').value;
+  const r = document.getElementById('fRubro').value;
+  const t = document.getElementById('fTipo').value;
+  document.querySelectorAll('#tabla tbody tr').forEach(tr => {
+    const txt = tr.querySelector('.desc').textContent + ' ' +
+                tr.querySelector('.prov').textContent;
+    const okQ = txt.toUpperCase().includes(q);
+    const okP = !pv || tr.querySelector('.prov').textContent.trim() === pv;
+    const okR = !r || tr.querySelector('.rub select').value === r;
+    const okT = !t || tr.querySelector('.tip select').value === t;
+    tr.style.display = (okQ && okP && okR && okT) ? '' : 'none';
+  });
+}
+
+/* Auto-guardado: cada seleccion se graba de inmediato en la base */
+
+/* Un producto YA CLASIFICADO solo se cambia si el usuario confirma SI */
+function confirmarCambio(sel){
+  const prev = sel.dataset.prev || '';
+  if (prev && sel.value !== prev){
+    const prod = sel.dataset.prod || 'Este producto';
+    const ok = confirm('⚠ PRODUCTO CLASIFICADO\n\n"' + prod +
+      '" ya está clasificado como: ' + prev +
+      '\n\n¿Cambia clasificación a "' + sel.value + '"?\n\n' +
+      'Aceptar = SÍ      Cancelar = NO');
+    if (!ok){ sel.value = prev; return false; }
+  }
+  sel.dataset.prev = sel.value;
+  return true;
+}
+function autoGuardar(sel){
+  if (!confirmarCambio(sel)) return;
+  const n = sel.name || '';
+  const sep = n.indexOf('__');
+  if (sep < 0) return;
+  const campo = n.slice(0, sep) === 'tipo' ? 'tipo_gasto' : 'rubro';
+  const clave = n.slice(sep + 2);
+  fetch('/asignar', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({clave: clave, campo: campo, valor: sel.value})
+  }).then(r => {
+    if (!r.ok) return;
+    sel.style.borderColor = '#2a8a4a';
+    const viejo = sel.title;
+    sel.title = 'Grabado en la base';
+    setTimeout(()=>{ sel.style.borderColor=''; sel.title = viejo; }, 1200);
+  });
+}
+document.querySelectorAll('select[name^="rubro__"], select[name^="tipo__"]')
+  .forEach(s => s.addEventListener('change', () => autoGuardar(s)));
+
+/* Ordenamiento por encabezado: producto/proveedor alfabetico, valor mayor-menor */
+let _oCol = null, _oAsc = true;
+function ordenar(col){
+  if (_oCol === col) _oAsc = !_oAsc;
+  else { _oCol = col; _oAsc = (col !== 'tot'); }   // valor arranca de mayor a menor
+  const tbody = document.querySelector('#tabla tbody');
+  const filas = [...tbody.querySelectorAll('tr')];
+  const key = {prod:'oProd', prov:'oProv', tot:'oTot'}[col];
+  filas.sort((a,b)=>{
+    let c;
+    if (col === 'tot') c = parseFloat(a.dataset[key]) - parseFloat(b.dataset[key]);
+    else c = (a.dataset[key]||'').localeCompare(b.dataset[key]||'', 'es');
+    return _oAsc ? c : -c;
+  });
+  filas.forEach(f => { tbody.appendChild(f); });
+  ['prod','prov','tot'].forEach(c2 => {
+    const e = document.getElementById('fl_'+c2);
+    if (e) e.textContent = c2===col ? (_oAsc ? '▲' : '▼') : '⇅';
+  });
+}
+</script>
+</body>
+</html>

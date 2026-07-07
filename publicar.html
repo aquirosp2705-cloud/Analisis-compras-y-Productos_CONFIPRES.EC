@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Publicar en GitHub Pages</title>
+<style>
+  :root { --azul:#1F4E78; --gris:#f4f6f9; --borde:#d8dee6; --verde:#2a8a4a; }
+  * { box-sizing:border-box; font-family:'Segoe UI',Arial,sans-serif; }
+  body { margin:0; background:var(--gris); color:#222; }
+  header { background:var(--azul); color:#fff; padding:14px 28px; display:flex;
+           justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:16px; }
+  main { max-width:640px; margin:22px auto; padding:0 16px; }
+  .card { background:#fff; border:1px solid var(--borde); border-radius:10px;
+          padding:20px 24px; margin-bottom:16px; }
+  .card h2 { margin:0 0 10px; font-size:14px; color:var(--azul); }
+  label { display:block; font-size:12px; font-weight:700; color:#41506a; margin:12px 0 4px; }
+  input { width:100%; padding:10px; border:1px solid var(--borde); border-radius:8px;
+          font-size:13px; }
+  button { background:var(--azul); color:#fff; border:0; border-radius:8px;
+           padding:12px 22px; font-size:14px; font-weight:700; cursor:pointer;
+           width:100%; margin-top:16px; }
+  button.sec { background:#5b7a99; width:auto; padding:9px 18px; font-size:13px; }
+  .msg { border-radius:8px; padding:11px 14px; font-size:13px; font-weight:600;
+         margin-bottom:14px; }
+  .msg.ok { background:#e5f2e9; color:var(--verde); }
+  .msg.err { background:#fdeceb; color:#b03a2e; }
+  .nota { font-size:11.5px; color:#68758a; line-height:1.6; }
+  .url { background:#f4fbf6; border:1px solid #bfe0ca; border-radius:8px;
+         padding:10px 12px; font-size:13px; margin-top:10px; }
+  .url a { color:var(--verde); font-weight:800; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌐 PUBLICAR EN GITHUB PAGES</h1>
+  <a href="/"><button type="button" class="sec">← Volver</button></a>
+</header>
+<main>
+  {% if msg %}<div class="msg {{ 'ok' if ok else 'err' }}">{{ msg }}</div>{% endif %}
+
+  <div class="card">
+    <h2>Datos del repositorio del cliente</h2>
+    <form method="post">
+      <label>Usuario de GitHub</label>
+      <input name="usuario" value="{{ cfg.usuario }}" placeholder="ej. aquirosp2705-cloud" required>
+      <label>Repositorio</label>
+      <input name="repo" value="{{ cfg.repo }}" placeholder="ej. analisis-clientex" required>
+      <label>Token maestro {% if cfg.tiene_token %}<span style="color:#2a8a4a">— ✔ ya hay uno guardado; pegue otro solo para reemplazarlo</span>{% endif %}</label>
+      <input name="token" type="password" placeholder="ghp_... (clásico con permiso repo) o github_pat_...">
+      <button type="submit" name="accion" value="crear" style="background:#2a8a4a">
+        🏗 CLIENTE NUEVO: crear repositorio + Pages + publicar (automático)</button>
+      <button type="submit" name="accion" value="publicar">
+        🚀 Solo PUBLICAR / actualizar (repositorio existente)</button>
+    </form>
+    {% if url %}
+    <div class="url">🌍 Web publicada: <a href="{{ url }}" target="_blank">{{ url }}</a>
+      {% if cfg.ultima %}<br><span style="font-size:11px;color:#68758a">Última publicación: {{ cfg.ultima }}</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Qué sube el sistema</h2>
+    <p class="nota"><b>Cliente nuevo:</b> escriba el nombre del repositorio
+    (ej. analisis-clientex) y use el botón verde: el sistema CREA el
+    repositorio, ACTIVA GitHub Pages y PUBLICA — todo automático, sin entrar
+    a GitHub. Con un token maestro guardado una sola vez, cada cliente nuevo
+    es un solo clic.<br><br>Con un solo clic se publican 3 páginas en el repositorio:
+    <b>index.html</b> (portal con la marca CONFIPRES.EC),
+    <b>dashboard.html</b> (el dashboard interactivo completo) y
+    <b>base_productos.html</b> (la base de productos clasificados, consultable
+    con filtros). El cliente entra desde cualquier dispositivo a
+    <b>https://USUARIO.github.io/REPOSITORIO/</b>. El token queda guardado en
+    este equipo, así las siguientes publicaciones son de un solo clic.</p>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mantenimiento — Tabla de Rubros</title>
+<style>
+  :root { --azul:#1F4E78; --gris:#f4f6f9; --borde:#d8dee6; --verde:#2a8a4a; }
+  * { box-sizing:border-box; font-family:'Segoe UI',Arial,sans-serif; }
+  body { margin:0; background:var(--gris); color:#222; }
+  header { background:var(--azul); color:#fff; padding:14px 28px; display:flex;
+           justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:16px; }
+  main { max-width:760px; margin:22px auto; padding:0 16px; }
+  .card { background:#fff; border:1px solid var(--borde); border-radius:10px;
+          padding:18px 22px; margin-bottom:16px; }
+  .card h2 { margin:0 0 10px; font-size:14px; color:var(--azul); }
+  .nota { font-size:12.5px; color:#555; line-height:1.5; margin-bottom:10px; }
+  ul.fijos { list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:8px; }
+  ul.fijos li { background:var(--gris); border:1px solid var(--borde);
+      border-radius:16px; padding:6px 14px; font-size:12px; font-weight:600; }
+  .fila { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+  input[type=text] { flex:1; min-width:220px; padding:9px 10px;
+      border:1px solid var(--borde); border-radius:7px; font-size:13px;
+      text-transform:uppercase; }
+  button { background:var(--azul); color:#fff; border:0; border-radius:7px;
+           padding:9px 16px; font-size:12.5px; font-weight:600; cursor:pointer; }
+  button.sec { background:#5b7a99; }
+  button.rojo { background:#b03a2e; }
+  .msg { border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:14px;
+         font-weight:600; }
+  .msg.ok { background:#e5f2e9; color:var(--verde); }
+  .msg.err { background:#fdeceb; color:#b03a2e; }
+  .contador { font-size:11.5px; color:#68758a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚙ MANTENIMIENTO — TABLA DE RUBROS</h1>
+  <a href="/"><button type="button" class="sec">← Volver</button></a>
+</header>
+<main>
+
+  {% if msg %}
+  <div class="msg {{ 'ok' if ok else 'err' }}">{{ msg }}</div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Rubros base del sistema (fijos)</h2>
+    <p class="nota">Estos 6 rubros vienen con el sistema y no se modifican:</p>
+    <ul class="fijos">
+      {% for r in base %}<li>{{ r }}</li>{% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Mis rubros propios
+      <span class="contador">({{ propios|length }} de {{ maximo }} — máximo
+      {{ maximo }} para que la tabla no se amplíe demasiado)</span></h2>
+    <p class="nota">Los rubros que usted crea aparecen de inmediato en todos
+    los desplegables de clasificación. Al renombrar uno, los productos ya
+    clasificados se actualizan solos; al eliminarlo, esos productos vuelven a
+    pendientes para reclasificar.</p>
+
+    {% for r in propios %}
+    <form class="fila" action="/rubros/accion" method="post">
+      <input type="hidden" name="viejo" value="{{ r }}">
+      <input type="text" name="nuevo" value="{{ r }}" maxlength="40">
+      <button name="accion" value="editar">💾 Renombrar</button>
+      <button name="accion" value="eliminar" class="rojo"
+        formnovalidate onclick="return confirm('¿Eliminar el rubro {{ r }}? Sus productos volverán a pendientes.')"
+        >🗑 Eliminar</button>
+      <input type="hidden" name="nombre" value="{{ r }}">
+    </form>
+    {% endfor %}
+
+    {% if propios|length < maximo %}
+    <form class="fila" action="/rubros/accion" method="post" style="margin-top:14px">
+      <input type="text" name="nombre" placeholder="Nombre del nuevo rubro (ej. MASCOTAS)"
+             maxlength="40" required>
+      <button name="accion" value="agregar">➕ Crear rubro</button>
+    </form>
+    {% else %}
+    <p class="nota" style="color:#b03a2e"><b>Llegó al máximo de {{ maximo }}
+    rubros propios.</b> Elimine uno si necesita crear otro.</p>
+    {% endif %}
+  </div>
+
+</main>
+</body>
+</html>

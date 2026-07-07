@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Revisar asignados</title>
+<style>
+  :root { --azul:#1F4E78; --gris:#f4f6f9; --borde:#d8dee6; --verde:#2a8a4a; }
+  * { box-sizing:border-box; font-family:'Segoe UI',Arial,sans-serif; }
+  body { margin:0; background:var(--gris); color:#222; }
+  header { background:var(--azul); color:#fff; padding:14px 28px;
+           position:sticky; top:0; z-index:5; display:flex;
+           justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:16px; }
+  main { max-width:1150px; margin:20px auto; padding:0 16px; }
+  .nota { font-size:12.5px; color:#555; margin-bottom:12px; line-height:1.5; }
+  .barra { background:#fff; border:1px solid var(--borde); border-radius:8px;
+           padding:12px 16px; margin-bottom:14px; display:flex; gap:10px;
+           flex-wrap:wrap; align-items:center; font-size:13px; }
+  input[type=text], .barra select { padding:7px 10px; border:1px solid var(--borde);
+           border-radius:6px; font-size:13px; }
+  button { background:#5b7a99; color:#fff; border:0; border-radius:6px;
+           padding:9px 18px; font-size:13px; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; background:#fff;
+          border:1px solid var(--borde); font-size:12px; }
+  th { background:var(--azul); color:#fff; padding:8px 6px; text-align:left;
+       position:sticky; top:58px; font-size:10.5px; }
+  td { padding:6px; border-bottom:1px solid var(--borde); vertical-align:middle; }
+  tr:hover td { background:#eef3f8; }
+  tr.pendconf td { background:#fffaeb; }
+  .num { text-align:right; white-space:nowrap; }
+  td select { width:100%; min-width:120px; padding:6px; border:1px solid #8fc79d;
+              border-radius:6px; background:#f4fbf6; font-size:11.5px; }
+  .badge { background:#fff3d6; color:#a87b00; border:1px solid #f0d896;
+           border-radius:10px; font-size:9.5px; font-weight:700;
+           padding:2px 7px; white-space:nowrap; }
+  .okmini { background:var(--verde); color:#fff; border:0; border-radius:6px;
+            font-size:10.5px; padding:5px 9px; cursor:pointer; white-space:nowrap; }
+
+  th.ord { cursor:pointer; user-select:none; }
+  th.ord:hover { background:#163a5c; }
+  .fl { font-size:9px; opacity:.85; margin-left:2px; }
+
+  .mchips { display:flex; gap:7px; overflow-x:auto; padding:2px 0 12px;
+            -webkit-overflow-scrolling:touch; }
+  .mchip { white-space:nowrap; font-size:11px; font-weight:800; padding:8px 14px;
+           border-radius:18px; background:#fff; border:1.5px solid var(--borde);
+           color:#67788c; text-decoration:none; }
+  .mchip.on { background:#E8B84B; border-color:#E8B84B; color:#4a3608; }
+  .subtot { background:#eef2f7; border:1px solid var(--borde); border-radius:9px;
+            padding:9px 14px; margin:10px 0; font-size:12.5px; font-weight:700;
+            color:#1F4E78; display:flex; gap:16px; flex-wrap:wrap; }
+  .subtot span b { color:#0e2a47; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📝 REVISAR ASIGNADOS</h1>
+  <a href="/"><button type="button">← Volver</button></a>
+</header>
+<main>
+  {% if meses %}<div class="mchips">
+    <a class="mchip {{ 'on' if not mes_actual }}" href="?{% if solo_confirmar %}confirmar=1{% endif %}">TODOS LOS MESES</a>
+    {% for m in meses %}
+    <a class="mchip {{ 'on' if mes_actual == m.clave }}" href="?mes={{ m.clave }}&{% if solo_confirmar %}confirmar=1{% endif %}">{{ m.nombre }}</a>
+    {% endfor %}
+  </div>{% endif %}
+  <p class="nota">Productos ya asignados, con su <b>proveedor</b> y
+  <b>fecha de compra</b>. Los de fondo amarillo fueron asignados por regla de
+  proveedor y están <b>⚠ POR CONFIRMAR</b>: pulse ✔ Confirmar si está de
+  acuerdo, o cambie los desplegables — cualquier cambio se graba al instante
+  y queda por revisado y confirmado.</p>
+
+  <div class="barra">
+    <input type="text" id="buscar" placeholder="🔍 Filtrar producto o proveedor..." onkeyup="filtrar()">
+    <select id="fProv" onchange="filtrar()">
+      <option value="">Todos los proveedores</option>
+      {% for pr in productos|map(attribute='proveedor')|unique|sort if pr %}
+      <option>{{ pr }}</option>{% endfor %}
+    </select>
+    <select id="fRubro" onchange="filtrar()">
+      <option value="">Todos los rubros</option>
+      {% for rb in rubros %}<option>{{ rb }}</option>{% endfor %}
+    </select>
+    <select id="fTipo" onchange="filtrar()">
+      <option value="">Todos los tipos</option>
+      {% for tp in tipos %}<option>{{ tp }}</option>{% endfor %}
+    </select>
+    <label><input type="checkbox" id="soloConf" {{ 'checked' if solo_confirmar }} onchange="filtrar()"> Solo por confirmar</label>
+    <span id="resumen" style="color:#68758a"></span>
+    <span style="flex-basis:100%;height:0"></span>
+    <span style="font-weight:700;color:#1F4E78">Cambiar a TODOS los mostrados:</span>
+    <select id="masaRubro">
+      <option value="">— RUBRO —</option>
+      {% for rb in rubros %}<option>{{ rb }}</option>{% endfor %}
+    </select>
+    <select id="masaTipo">
+      <option value="">— TIPO —</option>
+      {% for tp in tipos %}<option>{{ tp }}</option>{% endfor %}
+    </select>
+    <button type="button" style="background:#b8860b" onclick="aplicarMasa()">⚡ Aplicar a los mostrados</button>
+  </div>
+
+  <div class="subtot" id="subtot"></div>
+  <table id="tabla">
+    <thead>
+      <tr>
+<th>CÓDIGO</th><th class="ord" onclick="ordenar('prod')">PRODUCTO <span class="fl" id="fl_prod">⇅</span></th><th class="ord" onclick="ordenar('prov')">PROVEEDOR <span class="fl" id="fl_prov">⇅</span></th><th>1ª COMPRA</th><th>ÚLT. COMPRA</th>
+        <th class="num"># COMPRAS</th><th class="ord num" onclick="ordenar('tot')">TOTAL $ <span class="fl" id="fl_tot">⇅</span></th>
+        <th>RUBRO</th><th>TIPO DE GASTO</th><th>ESTADO</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+      <tr class="{{ 'pendconf' if p.por_confirmar }}"
+          data-txt="{{ p.descripcion }} {{ p.proveedor }} {{ p.codigo }}"
+          data-conf="{{ 1 if p.por_confirmar else 0 }}" data-compras="{{ p.compras }}" data-o-prod="{{ p.descripcion }}" data-o-prov="{{ p.proveedor }}" data-o-tot="{{ p.total }}">
+        <td><b>{{ p.codigo }}</b></td>
+        <td><b>{{ p.descripcion }}</b></td>
+        <td class="prov">{{ p.proveedor }}</td>
+        <td style="white-space:nowrap">{{ p.fecha_primera or '' }}</td>
+        <td style="white-space:nowrap">{{ p.fecha_ultima or '' }}</td>
+        <td class="num">{{ p.compras }}</td>
+        <td class="num">{{ '%.2f'|format(p.total) }}</td>
+        <td>
+          <select name="rubro__{{ p.clave }}" data-prev="{{ p.rubro }}" data-prod="{{ p.descripcion }}">
+            {% for r in rubros %}
+            <option {{ 'selected' if p.rubro == r }}>{{ r }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <select name="tipo__{{ p.clave }}" data-prev="{{ p.tipo_gasto }}" data-prod="{{ p.descripcion }}">
+            {% for t in tipos %}
+            <option {{ 'selected' if p.tipo_gasto == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          {% if p.por_confirmar %}
+          <span class="badge">⚠ POR CONFIRMAR</span>
+          <button type="button" class="okmini"
+            onclick="confirmarProd('{{ p.clave }}', this)">✔ Confirmar</button>
+          {% else %}
+          <span style="color:#2a8a4a;font-weight:700;font-size:11px">✔ Confirmado</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+<script>
+function filtrar() {
+  const q = document.getElementById('buscar').value.toUpperCase();
+  const pv = document.getElementById('fProv').value;
+  const fr = document.getElementById('fRubro').value;
+  const ft = document.getElementById('fTipo').value;
+  const solo = document.getElementById('soloConf').checked;
+  let vis = 0;
+  document.querySelectorAll('#tabla tbody tr').forEach(tr => {
+    const okQ = tr.dataset.txt.toUpperCase().includes(q);
+    const okP = !pv || tr.querySelector('.prov').textContent.trim() === pv;
+    const okR = !fr || tr.querySelector('select[name^="rubro__"]').value === fr;
+    const okT = !ft || tr.querySelector('select[name^="tipo__"]').value === ft;
+    const okC = !solo || tr.dataset.conf === '1';
+    const ok = okQ && okP && okR && okT && okC;
+    tr.style.display = ok ? '' : 'none';
+    if (ok) vis++;
+  });
+  document.getElementById('resumen').textContent = vis + ' producto(s)';
+  let nc2=0, tt=0;
+  document.querySelectorAll('#tabla tbody tr').forEach(tr => {
+    if (tr.style.display === 'none') return;
+    nc2 += parseInt(tr.dataset.compras||'0');
+    tt += parseFloat(tr.dataset.oTot||'0');
+  });
+  const f2 = n => '$'+n.toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('subtot').innerHTML =
+    `<span>SUBTOTAL DE LO MOSTRADO →</span><span>${vis} productos · <b>${nc2}</b> compras</span>` +
+    `<span>TOTAL <b>${f2(tt)}</b></span>`;
+}
+filtrar();
+
+function aplicarMasa(){
+  const nr = document.getElementById('masaRubro').value;
+  const nt = document.getElementById('masaTipo').value;
+  if (!nr && !nt) { alert('Elija el rubro y/o el tipo a aplicar.'); return; }
+  const visibles = [...document.querySelectorAll('#tabla tbody tr')]
+    .filter(tr => tr.style.display !== 'none');
+  if (!visibles.length) { alert('No hay productos mostrados.'); return; }
+  let n = 0;
+  visibles.forEach(tr => {
+    let cambio = false;
+    [['rubro__', nr], ['tipo__', nt]].forEach(([pref, val]) => {
+      if (!val) return;
+      const s = tr.querySelector('select[name^="' + pref + '"]');
+      if (s.value === val) return;
+      const antes = s.value;
+      s.value = val;
+      autoGuardar(s);              // pregunta SI/NO por CADA producto clasificado
+      if (s.value !== antes){ n++; cambio = true; }
+    });
+    if (cambio){
+      tr.classList.remove('pendconf'); tr.dataset.conf = '0';
+      tr.lastElementChild.innerHTML =
+        '<span style="color:#2a8a4a;font-weight:700;font-size:11px">✔ Confirmado</span>';
+    }
+  });
+  setTimeout(filtrar, 300);
+  alert('Listo: ' + n + ' cambio(s) grabados en la base.');
+}
+
+function confirmarProd(clave, btn){
+  fetch('/confirmar', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({clave: clave})}).then(r=>{
+      if (!r.ok) return;
+      const tr = btn.closest('tr');
+      tr.classList.remove('pendconf'); tr.dataset.conf = '0';
+      tr.lastElementChild.innerHTML =
+        '<span style="color:#2a8a4a;font-weight:700;font-size:11px">✔ Confirmado</span>';
+      // bajar automaticamente al siguiente de la lista
+      const visibles = [...document.querySelectorAll('#tabla tbody tr')]
+        .filter(t => t.style.display !== 'none');
+      const sig = visibles[visibles.indexOf(tr) + 1];
+      if (sig) sig.scrollIntoView({behavior:'smooth', block:'center'});
+    });
+}
+
+/* Auto-guardado: cada cambio se graba al instante y confirma el producto */
+
+/* Un producto YA CLASIFICADO solo se cambia si el usuario confirma SI */
+function confirmarCambio(sel){
+  const prev = sel.dataset.prev || '';
+  if (prev && sel.value !== prev){
+    const prod = sel.dataset.prod || 'Este producto';
+    const ok = confirm('⚠ PRODUCTO CLASIFICADO\n\n"' + prod +
+      '" ya está clasificado como: ' + prev +
+      '\n\n¿Cambia clasificación a "' + sel.value + '"?\n\n' +
+      'Aceptar = SÍ      Cancelar = NO');
+    if (!ok){ sel.value = prev; return false; }
+  }
+  sel.dataset.prev = sel.value;
+  return true;
+}
+function autoGuardar(sel){
+  if (!confirmarCambio(sel)) return;
+  const n = sel.name || '';
+  const sep = n.indexOf('__');
+  if (sep < 0) return;
+  const campo = n.slice(0, sep) === 'tipo' ? 'tipo_gasto' : 'rubro';
+  const clave = n.slice(sep + 2);
+  fetch('/asignar', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({clave: clave, campo: campo, valor: sel.value})
+  }).then(r => {
+    if (!r.ok) return;
+    sel.style.borderColor = '#2a8a4a';
+    setTimeout(()=>{ sel.style.borderColor=''; }, 1200);
+    const tr = sel.closest('tr');
+    tr.classList.remove('pendconf'); tr.dataset.conf = '0';
+    tr.lastElementChild.innerHTML =
+      '<span style="color:#2a8a4a;font-weight:700;font-size:11px">✔ Confirmado</span>';
+  });
+}
+document.querySelectorAll('select[name^="rubro__"], select[name^="tipo__"]')
+  .forEach(s => s.addEventListener('change', () => { autoGuardar(s); filtrar(); }));
+
+/* Ordenamiento por encabezado: producto/proveedor alfabetico, valor mayor-menor */
+let _oCol = null, _oAsc = true;
+function ordenar(col){
+  if (_oCol === col) _oAsc = !_oAsc;
+  else { _oCol = col; _oAsc = (col !== 'tot'); }   // valor arranca de mayor a menor
+  const tbody = document.querySelector('#tabla tbody');
+  const filas = [...tbody.querySelectorAll('tr')];
+  const key = {prod:'oProd', prov:'oProv', tot:'oTot'}[col];
+  filas.sort((a,b)=>{
+    let c;
+    if (col === 'tot') c = parseFloat(a.dataset[key]) - parseFloat(b.dataset[key]);
+    else c = (a.dataset[key]||'').localeCompare(b.dataset[key]||'', 'es');
+    return _oAsc ? c : -c;
+  });
+  filas.forEach(f => { tbody.appendChild(f); });
+  ['prod','prov','tot'].forEach(c2 => {
+    const e = document.getElementById('fl_'+c2);
+    if (e) e.textContent = c2===col ? (_oAsc ? '▲' : '▼') : '⇅';
+  });
+}
+</script>
+</body>
+</html>

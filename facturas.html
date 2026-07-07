@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Revisar facturas</title>
+<style>
+  :root { --azul:#1F4E78; --gris:#f4f6f9; --borde:#d8dee6; --verde:#2a8a4a; }
+  * { box-sizing:border-box; font-family:'Segoe UI',Arial,sans-serif; }
+  body { margin:0; background:var(--gris); color:#222; }
+  header { background:var(--azul); color:#fff; padding:14px 28px;
+           position:sticky; top:0; z-index:5; display:flex;
+           justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:16px; }
+  main { max-width:1150px; margin:20px auto; padding:0 16px; }
+  .miga { font-size:12.5px; margin-bottom:12px; color:#68758a; }
+  .miga a { color:var(--azul); font-weight:700; text-decoration:none; cursor:pointer; }
+  .barra { background:#fff; border:1px solid var(--borde); border-radius:8px;
+           padding:12px 16px; margin-bottom:14px; display:flex; gap:10px;
+           flex-wrap:wrap; align-items:center; font-size:13px; }
+  input[type=text] { padding:7px 10px; border:1px solid var(--borde);
+                     border-radius:6px; min-width:250px; }
+  button { background:#5b7a99; color:#fff; border:0; border-radius:6px;
+           padding:9px 18px; font-size:13px; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; background:#fff;
+          border:1px solid var(--borde); font-size:12px; }
+  th { background:var(--azul); color:#fff; padding:8px 6px; text-align:left; font-size:10.5px; }
+  td { padding:7px 6px; border-bottom:1px solid var(--borde); }
+  tr.click { cursor:pointer; }
+  tr.click:hover td { background:#eef3f8; }
+  .num { text-align:right; white-space:nowrap; }
+  .cab-fact { background:#fff; border:1px solid var(--borde); border-radius:10px;
+              padding:14px 18px; margin-bottom:12px; font-size:13px; line-height:1.7; }
+  .cab-fact b { color:var(--azul); }
+  tr.total td { background:#eef2f7; font-weight:700; }
+  .tablewrap { overflow-x:auto; border-radius:8px; border:1px solid var(--borde); }
+  .vista { display:none; } .vista.on { display:block; }
+  .nav-nivel { margin-bottom:12px; display:flex; gap:10px; flex-wrap:wrap; }
+  @media print {
+    header, .miga, .barra, .nav-nivel, #v1, #v2 { display:none !important; }
+    #v3 { display:block !important; }
+    body { background:#fff; }
+    main { max-width:100%; margin:0; padding:0; }
+    .tablewrap { border:0; }
+  }
+
+  .mchips { display:flex; gap:7px; overflow-x:auto; padding:2px 0 12px;
+            -webkit-overflow-scrolling:touch; }
+  .mchip { white-space:nowrap; font-size:11px; font-weight:800; padding:8px 14px;
+           border-radius:18px; background:#fff; border:1.5px solid #d8dee6;
+           color:#67788c; text-decoration:none; }
+  .mchip.on { background:#E8B84B; border-color:#E8B84B; color:#4a3608; }
+  .subtot { background:#eef2f7; border:1px solid #d8dee6; border-radius:9px;
+            padding:9px 14px; margin:10px 0; font-size:12.5px; font-weight:700;
+            color:#1F4E78; display:flex; gap:16px; flex-wrap:wrap; }
+  .subtot span b { color:#0e2a47; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧾 REVISAR FACTURAS</h1>
+  <a href="/"><button type="button">← Volver</button></a>
+</header>
+<main>
+  {% if meses %}<div class="mchips">
+    <a class="mchip {{ 'on' if not mes_actual }}" href="?">TODOS LOS MESES</a>
+    {% for m in meses %}
+    <a class="mchip {{ 'on' if mes_actual == m.clave }}" href="?mes={{ m.clave }}">{{ m.nombre }}</a>
+    {% endfor %}
+  </div>{% endif %}
+  <div class="miga" id="miga"></div>
+
+  <!-- NIVEL 1: PROVEEDORES -->
+  <div class="vista on" id="v1">
+    <div class="barra">
+      <input type="text" id="buscar" placeholder="🔍 Filtrar proveedor..." onkeyup="filtrarProv()">
+      <span id="resumen" style="color:#68758a"></span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>PROVEEDOR</th><th>RUC</th>
+          <th class="num"># FACTURAS</th><th class="num">TOTAL $</th></tr></thead>
+        <tbody id="tbProv"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NIVEL 2: FACTURAS DEL PROVEEDOR -->
+  <div class="vista" id="v2">
+    <div class="nav-nivel">
+      <button type="button" onclick="verProveedores()">← Proveedores</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>NUM. FACTURA</th><th>FECHA</th>
+          <th>PRODUCTOS</th><th class="num">IVA</th><th class="num">TOTAL $</th></tr></thead>
+        <tbody id="tbFact"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NIVEL 3: FACTURA COMPLETA -->
+  <div class="vista" id="v3">
+    <div class="nav-nivel">
+      <button type="button" onclick="verFacturas()">← Facturas del proveedor</button>
+      <button type="button" style="background:#1F4E78" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+    </div>
+    <div class="cab-fact" id="cabFact"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>CÓDIGO</th><th>PRODUCTO</th><th>RUBRO</th><th>TIPO</th>
+          <th class="num">CANT.</th><th class="num">P. UNIT.</th>
+          <th class="num">BASE IVA</th><th class="num">BASE 0%</th>
+          <th class="num">IVA</th><th class="num">TOTAL</th></tr></thead>
+        <tbody id="tbLineas"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<script>
+const PROVS = {{ proveedores|tojson }};
+const fmt = n => n.toLocaleString('es-EC',{minimumFractionDigits:2, maximumFractionDigits:2});
+let provAct = null, factAct = null;
+const d25 = t => (t && t.length > 25) ? t.slice(0, 25) + '…' : (t || '');
+function verFacturas(){ if (provAct) abrirProv(provAct.nombre); }
+
+function esc(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+function nivel(n){
+  [1,2,3].forEach(i=>document.getElementById('v'+i).classList.toggle('on', i===n));
+  const m = document.getElementById('miga');
+  let h = '<a onclick="verProveedores()">Proveedores</a>';
+  if (n >= 2) h += ' &nbsp;›&nbsp; <a onclick="verFacturas()">' + esc(provAct.nombre) + '</a>';
+  if (n === 3) h += ' &nbsp;›&nbsp; Factura ' + esc(factAct.num);
+  m.innerHTML = h;
+  window.scrollTo({top:0});
+}
+
+function verProveedores(){
+  const q = (document.getElementById('buscar').value || '').toUpperCase();
+  const tb = document.getElementById('tbProv');
+  let vis = 0;
+  const mostrados = PROVS.filter(p => (p.nombre+' '+p.ruc).toUpperCase().includes(q));
+  let nf=0, tt=0;
+  tb.innerHTML = mostrados.map((p) => { vis++; nf += p.facturas.length; tt += p.total;
+      return `<tr class="click" onclick="abrirProv('${esc(p.nombre).replace(/'/g,"\\'")}')">
+        <td><b>${esc(p.nombre)}</b></td><td>${esc(p.ruc)}</td>
+        <td class="num">${p.facturas.length}</td>
+        <td class="num"><b>$${fmt(p.total)}</b></td></tr>`; }).join('') +
+    `<tr class="total"><td colspan="2">SUBTOTAL DE LO MOSTRADO</td>
+     <td class="num">${nf}</td><td class="num">$${fmt(tt)}</td></tr>`;
+  document.getElementById('resumen').textContent = vis + ' proveedor(es)';
+  nivel(1);
+}
+function filtrarProv(){ verProveedores(); }
+
+function abrirProv(nombre){
+  provAct = PROVS.find(p => p.nombre === nombre);
+  const tb = document.getElementById('tbFact');
+  tb.innerHTML = provAct.facturas.map((f,i)=>{
+    const prods = f.lineas.slice(0,3).map(l=>esc(d25(l.desc))).join(' · ') +
+                  (f.lineas.length>3 ? ' · +' + (f.lineas.length-3) + ' más' : '');
+    return `<tr class="click" onclick="abrirFact(${i})">
+      <td><b>${esc(f.num)}</b></td><td>${esc(f.fecha)}</td>
+      <td style="font-size:11px;color:#41506a">${prods}</td>
+      <td class="num">$${fmt(f.iva)}</td>
+      <td class="num"><b>$${fmt(f.total)}</b></td></tr>`;
+  }).join('') + `<tr class="total"><td colspan="3">TOTAL ${esc(provAct.nombre)}
+    (${provAct.facturas.length} facturas)</td>
+    <td class="num">$${fmt(provAct.facturas.reduce((s,x)=>s+x.iva,0))}</td>
+    <td class="num">$${fmt(provAct.total)}</td></tr>`;
+  nivel(2);
+}
+
+function abrirFact(i){
+  factAct = provAct.facturas[i];
+  const f = factAct;
+  document.getElementById('cabFact').innerHTML =
+    `<b>PROVEEDOR:</b> ${esc(provAct.nombre)} &nbsp;·&nbsp; <b>RUC:</b> ${esc(provAct.ruc)}<br>
+     <b>FACTURA:</b> ${esc(f.num)} &nbsp;·&nbsp; <b>FECHA:</b> ${esc(f.fecha)}<br>
+     <b>AUTORIZACIÓN:</b> <span style="font-family:Menlo,monospace;font-size:11px">${esc(f.aut)}</span>`;
+  let bi=0, bc=0, iva=0, tot=0;
+  document.getElementById('tbLineas').innerHTML = f.lineas.map(l=>{
+    bi+=l.bi; bc+=l.bc; iva+=l.iva; tot+=l.total;
+    return `<tr><td><b>${esc(l.codigo)}</b></td>
+      <td title="${esc(l.desc)}">${esc(d25(l.desc))}</td>
+      <td>${esc(l.rubro)}</td><td>${esc(l.tipo)}</td>
+      <td class="num">${l.cant}</td><td class="num">${fmt(l.punit)}</td>
+      <td class="num">${fmt(l.bi)}</td><td class="num">${fmt(l.bc)}</td>
+      <td class="num">${fmt(l.iva)}</td><td class="num"><b>${fmt(l.total)}</b></td></tr>`;
+  }).join('') + `<tr class="total"><td colspan="6">TOTAL FACTURA</td>
+    <td class="num">${fmt(bi)}</td><td class="num">${fmt(bc)}</td>
+    <td class="num">${fmt(iva)}</td><td class="num">${fmt(tot)}</td></tr>`;
+  nivel(3);
+}
+
+verProveedores();
+</script>
+</body>
+</html>
